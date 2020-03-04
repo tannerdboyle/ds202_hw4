@@ -1,0 +1,161 @@
+---
+title: "hw4"
+author: "Tanner Boyle"
+date: "3/3/2020"
+output: html_document
+---
+
+## PROBLEM 1:
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggplot2)
+
+str(ChickWeight)
+summary(ChickWeight)
+
+weight0 <- ChickWeight %>% 
+  group_by(Diet) %>% 
+  summarize(n = n(),
+          avg_weight = mean(weight, na.rm=TRUE),
+          sd = sd(weight, na.rm=TRUE)) %>% 
+  as.data.frame()
+```
+
+```{r}
+print(weight0)
+```
+
+
+## PROBLEM 2
+
+```{r, include=FALSE}
+ChickWeight %>% 
+  group_by(Chick) %>% 
+  tally() %>% 
+  arrange(Chick)
+
+complete <- ChickWeight
+
+```
+
+```{r}
+print(head(complete, 3))
+```
+
+
+## PROBLEM 3
+
+```{r, include=FALSE}
+complete <- complete %>% 
+  group_by(Chick) %>% 
+  mutate(weightgain = weight - weight[Time==0])
+```
+
+```{r}
+print(head(complete, 3))
+```
+
+
+## PROBLEM 4
+
+```{r}
+complete %>% 
+  filter(Time == 21) %>% 
+  ggplot(aes(x=reorder(Diet, weightgain, median), y=weightgain)) +
+  geom_boxplot() +
+  ylim(c(0, 350))
+```
+
+### There seems to be a diet effect. In order from least to most weight gain (as ordered by median weight gain of each diet), we see diets 1, 2, 4, 3. Interestingly, Diet 4 appears to have the most precise data (smallest IQR and overall range), and Diet 2 appears to have the largest spread (both IQR and overall range). 
+
+## PROBLEM 5
+
+```{r}
+complete %>% 
+  filter(Time == 21) %>% 
+  arrange(-weightgain) %>% 
+  tail(1)
+
+complete %>% 
+  filter(Time == 21) %>% 
+  arrange(-weightgain) %>% 
+  head(1)
+```
+
+### Chick No.24 had the smallest weight gain of 32gm and was on Diet No.2. This was graphically apparent in the above boxplot as the absolute minimum of the entire dataset. 
+
+### Chick No.35 had the largest weight gain of 332gm and was on Diet No.3. This was graphically apparent in the above boxplot as the absolute maximum of the entire dataset. This supports the notion that Diet No.4 resulted in the highest weight gains of any diet.
+
+## PROBLEM 6
+
+```{r, include=FALSE}
+complete %>% 
+  filter(Time==0) %>% 
+  arrange(-weight)
+
+complete %>% 
+  filter(Time==0) %>% 
+  arrange(weight)
+
+meanweights <- complete %>% 
+  group_by(Time) %>% 
+  summarise(mean = mean(weight, na.rm=TRUE)) %>% 
+  as.data.frame()
+
+meanweights
+```
+
+```{r}
+complete %>% 
+  filter(Chick %in% c(3, 11, 19, 23, 18, 27, 28, 29, 33, 36, 48)) %>% 
+  ggplot(aes(x=Time, y=weight, group=Chick, color=Chick)) +
+  geom_line()
+```
+
+### After determining which chicks had the highest/lowest starting weights (there were multiple that were tied at 43gm and 39gm, respectively), I plotted the weight trajectory of each one. Apart from two outliers (the purple lines that form a sort of oval), the chicks all had similar growth trajectories. This supports the idea that initial weight doesn't impact rate of growth (at least through 10-15 days). It would appear to me like the growth rate of any given chick is likely to be quadratic, with faster growth coming later on in their lifespan. 
+
+
+
+## PROBLEM 7 
+
+```{r}
+complete %>% 
+  filter(Chick %in% c(3, 11, 19, 23, 18, 27, 28, 29, 33, 36, 48)) %>% 
+  ggplot(aes(x=Time, y=weight, group=Chick, color=Chick)) +
+  geom_line() +
+  stat_summary(aes(y=weight,group=1), fun.y=mean, colour="red", geom="line", size=1.125, group=1)
+```
+
+### Again, apart from the two outlier chicks colored in purple, it seems like most chicks are quite similar to the average chick, further supporting the idea that initial weight doesn't play a major role in rate of growth (when averaged across all diets). 
+
+## PROBLEM 8
+
+```{r}
+complete %>% 
+  ggplot(aes(x=Time, y=weightgain)) +
+  geom_point() +
+  facet_grid(~Diet) +
+  ggtitle("Rate of Growth Faceted by Diet")
+
+model <- lm(weight ~ Time + Diet, data = ChickWeight)
+summary(model)
+
+ChickWeightadj <- ChickWeight
+ChickWeightadj$Time2 <- ChickWeightadj$Time * ChickWeightadj$Time
+
+model2 <- lm(weight ~ Time + Diet + Time2, data=ChickWeightadj)
+summary(model2)
+```
+
+### It looks like the rate of growth is dependent on Diet. 
+
+### According to a linear model, there are significant effects regarding Diet and Time. The highest estimated Diet effect is Diet No.3 at 36.5 and the lowest is Diet 1 at 10.92. Our model has an AdjR^2 of .74, meaning that around 74% of the variation in the dataset is explained by this model.
+
+### Adding a quadratic term to time (as is evidenced by the growth rate faceted by diet plot) seems to be significant (very low pval itself, pvals of other variables get lower). As expected, AdjR^2 increases, but that doesn't necessarily mean that this model is better since we are adding an additional term. 
+
+### With more time, it could be interesting to explore whether there are interaction effects between time and Diets. Perhaps certain diets increase growth rate in early days and certain diets are more effective at increasing growth rate in the later days. Ultimately, I think that the goal would be to predict a final weight after 21 days for any given chick with starting weight W and diet D. 
+
+
